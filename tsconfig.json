@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "outDir": "build",
+    "target": "es2017",
+    "moduleResolution": "node",
+    "allowJs": false,
+    "module": "commonjs",
+    "pretty": true,
+    "noUnusedLocals": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "jsx": "react",
+    "lib": [
+      "es2017"
+    ],
+    "plugins": [
+      {
+        "name": "typescript-tslint-plugin",
+        "alwaysShowRuleFailuresAsWarnings": false,
+        "ignoreDefinitionFiles": true,
+        "suppressWhileTypeErrorsPresent": false,
+        "mockTypeScriptVersion": false,
+        "configFile": "tslint.yaml"
+      }
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+  ]
+}
