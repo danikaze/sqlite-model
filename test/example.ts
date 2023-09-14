@@ -2,6 +2,9 @@ import { SqliteModel } from '../src';
 
 type Query = 'set' | 'get' | 'update';
 
+/**
+ * Example to demostrate a class to store and read in a key:value model
+ */
 export class Example extends SqliteModel<Query> {
   // we usually don't want to expose all the model options, so our constructor will have a different interface
   constructor(dbPath: string) {

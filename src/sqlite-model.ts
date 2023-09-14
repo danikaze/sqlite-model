@@ -88,10 +88,14 @@ export class SqliteModel<Q extends string> {
           const getVersionSql = `SELECT value FROM ${this.modelOptions.internalTable} WHERE key = ?`;
           this.db!.get<InternalTableRow>(getVersionSql, ['version'], (error, row) => {
             if (error) {
-              reject(error);
+              reject(`Error while retrieving current schema version: ${error}`);
               return;
             }
             const currentVersion = row && Number(row.value);
+            if (!currentVersion) {
+              reject('Error while retrieving current schema version');
+              return;
+            }
             resolve(currentVersion);
           });
         })
@@ -99,20 +103,29 @@ export class SqliteModel<Q extends string> {
   }
 
   /**
-   * Closes the connection to the database and resolves when done
+   * First it finalizes every prepared statement
+   * Then closes the connection to the database
+   * Then resolves when done
    */
   public closeDb(): Promise<void> {
     return this.ready.then(
       () =>
         new Promise((resolve, reject) => {
-          this.db!.close((error) => {
-            if (error) {
-              reject(`Error closing the database: ${error}`);
-              return;
-            }
+          const finalized = Object.values(this.stmt).map((stmt) =>
+            (stmt as SqliteStatement).finalize()
+          );
+          Promise.all(finalized)
+            .then(() => {
+              this.db!.close((error) => {
+                if (error) {
+                  reject(`Error closing the database: ${error}`);
+                  return;
+                }
 
-            resolve();
-          });
+                resolve();
+              });
+            })
+            .catch((error) => reject(error));
         })
     );
   }
@@ -198,11 +211,16 @@ export class SqliteModel<Q extends string> {
           return;
         }
 
-        if (await this.isNew()) {
-          await this.createInternalTable();
-          await this.createModelTables();
+        try {
+          if (await this.isNew()) {
+            await this.createInternalTable();
+            await this.createModelTables();
+          }
+          await this.prepareStmts();
+        } catch (error) {
+          reject(error);
+          return;
         }
-        await this.prepareStmts();
 
         resolve();
       });
@@ -258,8 +276,12 @@ export class SqliteModel<Q extends string> {
   private async createModelTables(): Promise<void> {
     await asyncSecuential(this.modelOptions.createDbSql, async (fileOrSql) => {
       if (existsSync(fileOrSql)) {
-        const sql = await this.getSqlFromFile(fileOrSql);
-        return this.execSql(sql);
+        try {
+          const sql = await this.getSqlFromFile(fileOrSql);
+          return this.execSql(sql);
+        } catch (err) {
+          throw err;
+        }
       }
       return this.execSql(fileOrSql);
     });

@@ -83,25 +83,25 @@ export function promisifyStatementResult<
 ): (...params: any[]) => Promise<R> {
   return (...params) =>
     new Promise<R>((resolve, reject) => {
-      stmt[method](
-        ...params,
-        function handler(this: sqlite3.RunResult, error: Error, r?: any | any[]) {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          const data: SqliteNoResult | SqliteMultipleResult | Partial<SqliteSingleResult> = {
-            result: this,
-          };
-
-          if (field && r) {
-            data[field as keyof typeof data] = r;
-          }
-
-          resolve(data as R);
+      // function called when the method completes
+      function complete(this: sqlite3.RunResult, error: Error, rowOrRows?: any | any[]) {
+        if (error) {
+          reject(error);
+          return;
         }
-      );
+
+        const data: SqliteNoResult | SqliteMultipleResult | Partial<SqliteSingleResult> = {
+          result: this,
+        };
+
+        if (field && rowOrRows) {
+          data[field as keyof typeof data] = rowOrRows;
+        }
+
+        resolve(data as R);
+      }
+
+      stmt[method](...params, complete);
     });
 }
 
@@ -110,6 +110,7 @@ export function promisifyStatementEach<T>(
 ): (callback: (row: T) => void, ...params: any[]) => Promise<SqliteNoResult> {
   return (callback, ...params) =>
     new Promise<SqliteNoResult>((resolve, reject) => {
+      // callback called for each row
       function cb(error: Error, row: T) {
         if (error) {
           reject(error);
@@ -119,13 +120,16 @@ export function promisifyStatementEach<T>(
         callback(row);
       }
 
-      stmt.each(...params, cb, function handler(this: sqlite3.RunResult, error: Error) {
+      // final function called when callbacks are called for all rows
+      function complete(this: sqlite3.RunResult, error: Error) {
         if (error) {
           reject(error);
           return;
         }
 
         resolve({ result: this });
-      });
+      }
+
+      stmt.each(...params, cb, complete);
     });
 }
