@@ -35,11 +35,18 @@ export interface SqliteModelOptions<Q extends string> {
   internalTable?: string;
 }
 
+interface InternalTableRow {
+  key: string;
+  value: string;
+}
 export class SqliteModel<Q extends string> {
   protected readonly modelOptions: SqliteModelOptions<Q>;
   protected readonly stmt: { [K in Q]: SqliteStatement };
   private readonly ready: Promise<void>;
-  private db: sqlite3.Database;
+  /*
+   * `db` should be accessed (privately) only with `this.dbReady`
+   */
+  private db?: sqlite3.Database;
 
   constructor(options: SqliteModelOptions<Q>) {
     this.modelOptions = {
@@ -75,33 +82,39 @@ export class SqliteModel<Q extends string> {
    * Retrieve the current schema version
    */
   public getCurrentSchemaVersion(): Promise<number> {
-    return this.ready.then(() => new Promise<number>((resolve, reject) => {
-      const getVersionSql = `SELECT value FROM ${this.modelOptions.internalTable} WHERE key = ?`;
-      this.db.get(getVersionSql, ['version'], (error, row) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        const currentVersion = row && Number(row.value);
-        resolve(currentVersion);
-      });
-    }));
+    return this.ready.then(
+      () =>
+        new Promise<number>((resolve, reject) => {
+          const getVersionSql = `SELECT value FROM ${this.modelOptions.internalTable} WHERE key = ?`;
+          this.db!.get<InternalTableRow>(getVersionSql, ['version'], (error, row) => {
+            if (error) {
+              reject(error);
+              return;
+            }
+            const currentVersion = row && Number(row.value);
+            resolve(currentVersion);
+          });
+        })
+    );
   }
 
   /**
    * Closes the connection to the database and resolves when done
    */
   public closeDb(): Promise<void> {
-    return this.ready.then(() => new Promise((resolve, reject) => {
-      this.db.close((error) => {
-        if (error) {
-          reject(`Error closing the database: ${error}`);
-          return;
-        }
+    return this.ready.then(
+      () =>
+        new Promise((resolve, reject) => {
+          this.db!.close((error) => {
+            if (error) {
+              reject(`Error closing the database: ${error}`);
+              return;
+            }
 
-        resolve();
-      });
-    }));
+            resolve();
+          });
+        })
+    );
   }
 
   /**
@@ -112,7 +125,7 @@ export class SqliteModel<Q extends string> {
    */
   protected execSql(sql: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      this.db.exec(sql, function cb(error) {
+      this.db!.exec(sql, function cb(error) {
         if (error) {
           reject(`Error while executing sql: ${sql} (${error})`);
           return;
@@ -134,8 +147,8 @@ export class SqliteModel<Q extends string> {
 
       try {
         sql = readFileSync(file)
-                .toString()
-                .replace(/-- .*\n/gm, '');
+          .toString()
+          .replace(/-- .*\n/gm, '');
       } catch (error) {
         reject(`Error while reading sql from ${file} (${error})`);
         return;
@@ -150,7 +163,7 @@ export class SqliteModel<Q extends string> {
    */
   protected prepareStmt(sql: string): Promise<SqliteStatement> {
     return new Promise((resolve, reject) => {
-      this.db.prepare(sql, function prepared(error) {
+      this.db!.prepare(sql, function prepared(error) {
         if (error) {
           reject(`Error preparing query ${sql} (${error})`);
           return;
@@ -203,7 +216,7 @@ export class SqliteModel<Q extends string> {
     return new Promise((resolve, reject) => {
       const { internalTable } = this.modelOptions;
       const checkSql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${internalTable}'`;
-      this.db.get(checkSql, (error, row) => {
+      this.db!.get(checkSql, (error, row) => {
         if (error) {
           reject(`Error while checking for internal table (${error})`);
           return;
@@ -229,7 +242,7 @@ export class SqliteModel<Q extends string> {
         INSERT INTO ${internalTable} VALUES('version', '1');
       `;
 
-      this.db.exec(sql, (error) => {
+      this.db!.exec(sql, (error) => {
         if (error) {
           reject(`Error while creating internal table (${error})`);
           return;
@@ -259,8 +272,9 @@ export class SqliteModel<Q extends string> {
     const { queries } = this.modelOptions;
     const stmt = this.stmt;
 
+    type Q = keyof typeof queries;
     await asyncParallel(Object.keys(queries), async (query) => {
-      stmt[query] = await this.prepareStmt(queries[query]);
+      stmt[query as Q] = await this.prepareStmt(queries[query as Q]);
     });
   }
 }

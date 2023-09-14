@@ -1,5 +1,3 @@
-import { describe, it } from 'mocha';
-import { assert } from 'chai';
 import { Example } from './example';
 import { unlinkSync, existsSync } from 'fs';
 
@@ -20,11 +18,11 @@ describe('Example SqliteModel', () => {
 
   it('should be ready after opening the database', async () => {
     await model.isReady();
-    assert.isTrue(true);
+    expect(true).toBeTruthy();
   });
 
   it('should provide the schema version', async () => {
-    assert.equal(await model.getCurrentSchemaVersion(), 1);
+    expect(await model.getCurrentSchemaVersion()).toBe(1);
   });
 
   it('example model should create data', async () => {
@@ -38,11 +36,11 @@ describe('Example SqliteModel', () => {
 
     const keys = Object.keys(data);
     for (const key in keys) {
-      const value = data[key];
-      assert.isUndefined(await model.get(key));
+      const value = data[key as keyof typeof data];
+      expect(await model.get(key)).toBeUndefined();
       await model.set(key, value);
-      assert.strictEqual(await model.get(key), value);
-    };
+      expect(await model.get(key)).toBe(value);
+    }
   });
 
   it('example model should update data', async () => {
@@ -50,10 +48,10 @@ describe('Example SqliteModel', () => {
     const value1 = 'value1';
     const value2 = 'value2';
 
-    assert.isUndefined(await model.get(key));
+    expect(await model.get(key)).toBeUndefined();
     await model.set(key, value1);
-    assert.strictEqual(await model.get(key), value1);
+    expect(await model.get(key)).toBe(value1);
     await model.set(key, value2);
-    assert.strictEqual(await model.get(key), value2);
+    expect(await model.get(key)).toBe(value2);
   });
 });

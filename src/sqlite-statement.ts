@@ -74,50 +74,58 @@ export interface SqliteStatement {
   each<T = any>(callback: (row: T) => void, ...params: any[]): Promise<SqliteSingleResult<T>>;
 }
 
-export function promisifyStatementResult<R = SqliteNoResult | SqliteSingleResult | SqliteMultipleResult>(
+export function promisifyStatementResult<
+  R = SqliteNoResult | SqliteSingleResult | SqliteMultipleResult,
+>(
   stmt: sqlite3.Statement,
   method: 'bind' | 'reset' | 'finalize' | 'run' | 'get' | 'all' | 'each',
-  field?: 'row' | 'rows',
+  field?: 'row' | 'rows'
 ): (...params: any[]) => Promise<R> {
-  return (...params) => new Promise<R>((resolve, reject) => {
-    stmt[method](...params, function handler(error: Error, r?: any | any[]) {
-      if (error) {
-        reject(error);
-        return;
-      }
+  return (...params) =>
+    new Promise<R>((resolve, reject) => {
+      stmt[method](
+        ...params,
+        function handler(this: sqlite3.RunResult, error: Error, r?: any | any[]) {
+          if (error) {
+            reject(error);
+            return;
+          }
 
-      const data: SqliteNoResult | SqliteMultipleResult | Partial<SqliteSingleResult> = {
-        result: this,
-      };
+          const data: SqliteNoResult | SqliteMultipleResult | Partial<SqliteSingleResult> = {
+            result: this,
+          };
 
-      if (field && r) {
-        data[field] = r;
-      }
+          if (field && r) {
+            data[field as keyof typeof data] = r;
+          }
 
-      resolve(data as R);
+          resolve(data as R);
+        }
+      );
     });
-  });
 }
 
-export function promisifyStatementEach<T>(stmt: sqlite3.Statement):
-(callback: (row: T) => void, ...params: any[]) => Promise<SqliteNoResult> {
-  return (callback, ...params) => new Promise<SqliteNoResult>((resolve, reject) => {
-    function cb(error, row: T) {
-      if (error) {
-        reject(error);
-        return;
+export function promisifyStatementEach<T>(
+  stmt: sqlite3.Statement
+): (callback: (row: T) => void, ...params: any[]) => Promise<SqliteNoResult> {
+  return (callback, ...params) =>
+    new Promise<SqliteNoResult>((resolve, reject) => {
+      function cb(error: Error, row: T) {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        callback(row);
       }
 
-      callback(row);
-    }
+      stmt.each(...params, cb, function handler(this: sqlite3.RunResult, error: Error) {
+        if (error) {
+          reject(error);
+          return;
+        }
 
-    stmt.each(...params, cb, (error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve({ result: this });
+        resolve({ result: this });
+      });
     });
-  });
 }

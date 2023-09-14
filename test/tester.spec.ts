@@ -1,6 +1,4 @@
 import * as sqlite3 from 'sqlite3';
-import { describe, it } from 'mocha';
-import { assert } from 'chai';
 import { Tester } from './tester';
 import { unlinkSync, existsSync } from 'fs';
 import { SqliteModelOptions } from '../src';
@@ -35,6 +33,8 @@ function createModel(options?: Partial<SqliteModelOptions<Q>>): Tester<Q> {
 }
 
 describe('Test SqliteModel', () => {
+  // check if the database file exist and removes it in case
+  // so it runs on a clear database
   beforeEach(() => {
     testN++;
     if (existsSync(getTestDb())) {
@@ -42,8 +42,9 @@ describe('Test SqliteModel', () => {
     }
   });
 
-  after(() => {
-    while (testN > 0 ) {
+  // remove the database file after running the test
+  afterAll(() => {
+    while (testN > 0) {
       if (existsSync(getTestDb())) {
         unlinkSync(getTestDb());
       }
@@ -56,9 +57,9 @@ describe('Test SqliteModel', () => {
 
     const stmt = await model.getStmt('checkTable');
     const result = await stmt.all('test');
-    assert.equal(result.rows.length, 1);
-    assert.equal(result.rows[0].name, 'test');
-    assert.isTrue(existsSync(getTestDb()));
+    expect(result.rows.length).toBe(1);
+    expect(result.rows[0].name).toBe('test');
+    expect(existsSync(getTestDb())).toBeTruthy();
   });
 
   it('should allow opening a database in read only mode', async () => {
@@ -74,9 +75,9 @@ describe('Test SqliteModel', () => {
     const stmt = await model.getStmt('insert');
     try {
       await stmt.run(1);
-      assert.isTrue(false);
+      expect(false).toBeTruthy();
     } catch (e) {
-      assert.isTrue(true);
+      expect(true).toBeTruthy();
     }
   });
 
@@ -90,12 +91,12 @@ describe('Test SqliteModel', () => {
     const insertStmt = await model1.getStmt('insert');
     const getStmt = await model2.getStmt('getAll');
 
-    assert.equal((await getStmt.all()).rows.length, 0);
+    expect((await getStmt.all()).rows.length).toBe(0);
 
     await insertStmt.run(value);
     const result = await getStmt.all();
-    assert.equal(result.rows.length, 1);
-    assert.equal(result.rows[0].value, value);
+    expect(result.rows.length).toBe(1);
+    expect(result.rows[0].value).toBe(value);
   });
 
   it('should be ready after opening the database', async () => {
@@ -103,23 +104,23 @@ describe('Test SqliteModel', () => {
     await model.isReady();
   });
 
-  it('should close the database');
+  it.skip('should close the database', () => {});
 
   it('should provide the schema version', async () => {
     const model = createModel();
-    assert.equal(await model.getCurrentSchemaVersion(), 1);
+    expect(await model.getCurrentSchemaVersion()).toBe(1);
   });
 
   it('should execute arbitrary sql', async () => {
     const model = createModel();
     await model.isReady();
 
-    const sql = 'INSERT INTO test(value) VALUES(123);'
+    const sql = 'INSERT INTO test(value) VALUES(123);';
     await model.publicExecSql(sql);
     const getStmt = await model.getStmt('getAll');
     const result = await getStmt.all();
-    assert.equal(result.rows.length, 1);
-    assert.equal(result.rows[0].value, 123);
+    expect(result.rows.length).toBe(1);
+    expect(result.rows[0].value).toBe(123);
   });
 
   it('should read sql from files', async () => {
@@ -127,10 +128,7 @@ describe('Test SqliteModel', () => {
     const sql = await model.publicGetSqlFromFile(join(__dirname, './foobar.sql'));
     const expected = `SELECT * FROM test WHERE true;`;
 
-    assert.equal(
-      sql.trim().replace(/\n/g, ' '),
-      expected.trim().replace(/\n/g, ' '),
-    );
+    expect(sql.trim().replace(/\n/g, ' ')).toBe(expected.trim().replace(/\n/g, ' '));
   });
 
   it('should prepare statements from sql queries', async () => {
@@ -141,8 +139,8 @@ describe('Test SqliteModel', () => {
     const insertStmt = await model.publicPrepareStmt(insertSql);
 
     const result = await insertStmt.run(1);
-    assert.equal(result.result.changes, 1);
-    assert.equal(result.result.lastID, 1);
+    expect(result.result.changes).toBe(1);
+    expect(result.result.lastID).toBe(1);
   });
 
   it('should execute Statement.each properly', async () => {
@@ -154,10 +152,10 @@ describe('Test SqliteModel', () => {
     await insertStmt.run(2);
     await insertStmt.run(3);
 
-    let calledRows = [];
+    let calledRows: number[] = [];
     await get.each((row) => {
       calledRows.push(row.value);
     });
-    assert.deepEqual(calledRows, [1, 2, 3]);
+    expect(calledRows).toEqual([1, 2, 3]);
   });
 });

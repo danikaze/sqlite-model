@@ -1,21 +1,12 @@
 # =========================
 # Project Files
 # =========================
-.DS_Store
-*.log
-*.SUBLIME-PROJECT
-*.SUBLIME-WORKSPACE
-build
-.abandonware-dl
+dist
 coverage
 coverage-tmp
-.nyc_output
 node_modules
 temp
-downloads
-*.psd
 *.db
-.vscode
 
 # =========================
 # Operating System Files

@@ -1,7 +1,4 @@
-export {
-  SqliteModel,
-  SqliteModelOptions,
-} from './sqlite-model';
+export { SqliteModel, SqliteModelOptions } from './sqlite-model';
 
 export {
   SqliteStatement,
