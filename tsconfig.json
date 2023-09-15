@@ -1,18 +1,21 @@
 {
   "compilerOptions": {
-    "outDir": "build",
-    "target": "es2017",
+    "outDir": "dist",
+    "target": "es5",
+    "module": "CommonJS",
     "moduleResolution": "node",
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": false,
-    "module": "commonjs",
     "pretty": true,
     "noUnusedLocals": true,
-    "resolveJsonModule": true,
     "declaration": true,
-    "jsx": "react",
-    "lib": [
-      "es2017"
-    ],
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": false,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "typescript-tslint-plugin",
@@ -24,7 +27,5 @@
       }
     ]
   },
-  "include": [
-    "src/**/*.ts",
-  ]
+  "include": ["src/**/*.ts"]
 }

@@ -2,6 +2,9 @@ import { SqliteModel } from '../src';
 
 type Query = 'set' | 'get' | 'update';
 
+/**
+ * Example to demostrate a class to store and read in a key:value model
+ */
 export class Example extends SqliteModel<Query> {
   // we usually don't want to expose all the model options, so our constructor will have a different interface
   constructor(dbPath: string) {
@@ -15,12 +18,14 @@ export class Example extends SqliteModel<Query> {
         update: 'UPDATE example SET value = ? WHERE key = ?;',
       },
       // This SQL will be executed only when the database is created the first time
-      createDbSql: [`
+      createDbSql: [
+        `
         CREATE TABLE IF NOT EXISTS example (
           key text NOT NULL PRIMARY KEY,
           value text NOT NULL
         );
-      `],
+      `,
+      ],
     });
   }
 
@@ -62,8 +67,8 @@ export class Example extends SqliteModel<Query> {
 
     try {
       const { row } = await this.stmt.get.get<{ value: string }>(key);
-      const res = row && JSON.parse(row.value) as T;
-      return res;
+      const res = row && JSON.parse(row.value);
+      return res as T;
     } catch (error) {
       throw new Error(`An error happened while trying to get ${key} [${error}]`);
     }
